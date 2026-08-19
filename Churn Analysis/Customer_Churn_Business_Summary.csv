@@ -1,0 +1,5 @@
+,Age,Age,Age,Age,Tenure,Tenure,Tenure,Usage Frequency,Usage Frequency,Usage Frequency,Support Calls,Support Calls,Support Calls,Payment Delay,Payment Delay,Payment Delay,Total Spend,Total Spend,Total Spend,Total Spend,Last Interaction,Last Interaction,Last Interaction
+,count,mean,min,max,mean,min,max,mean,min,max,mean,min,max,mean,min,max,sum,mean,min,max,mean,min,max
+Churn,,,,,,,,,,,,,,,,,,,,,,,
+No,33881,41.13,18,65,28.83,1,60,16.04,1,30,4.5,0,10,12.45,0,30,18991722,560.54,100,1000,15.52,1,30
+Yes,30493,42.9,18,65,35.52,1,60,14.01,1,30,6.4,0,10,22.33,0,30,15836117,519.34,100,1000,15.47,1,30
