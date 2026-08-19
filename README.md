@@ -137,78 +137,11 @@ The project includes an interactive **Streamlit dashboard** where users can expl
 *  Customer-level analysis
 *  Business insights
 
-##  Project Structure
 
-```text
-Customer-Churn-Analysis/
-│
-├── app.py
-├── requirements.txt
-├── README.md
-│
-├── data/
-│   └── customer_churn.csv
-│
-├── models/
-│   └── model.pkl
-│
-├── notebooks/
-│   └── customer_churn_analysis.ipynb
-│
-├── src/
-│   ├── preprocessing.py
-│   ├── model.py
-│   └── clustering.py
-│
-└── images/
-    ├── dashboard.png
-    ├── churn_analysis.png
-    └── clustering.png
-```
 
-> Update the folder structure according to the actual files in your repository.
 
-##  How to Run the Project Locally
 
-### 1. Clone the Repository
 
-```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
-```
-
-### 2. Open the Project Folder
-
-```bash
-cd Customer-Churn-Analysis
-```
-
-### 3. Create a Virtual Environment
-
-```bash
-python -m venv .venv
-```
-
-### 4. Activate the Virtual Environment
-
-**Windows PowerShell:**
-
-```powershell
-.venv\Scripts\Activate.ps1
-```
-
-### 5. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 6. Run Streamlit
-
-```bash
-streamlit run app.py
-```
-
-The application will open in your browser.
 
 ## 📦 Requirements
 
