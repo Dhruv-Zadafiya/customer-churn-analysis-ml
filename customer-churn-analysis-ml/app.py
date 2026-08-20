@@ -8,9 +8,7 @@ from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
-# =========================================================
-# PAGE CONFIG
-# =========================================================
+
 
 st.set_page_config(
     page_title="Customer Churn Analytics",
@@ -19,9 +17,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# =========================================================
-# CUSTOM CSS
-# =========================================================
 
 st.markdown("""
 <style>
@@ -55,14 +50,26 @@ div[data-testid="stMetric"] {
 """, unsafe_allow_html=True)
 
 
-# =========================================================
-# LOAD DATA
-# =========================================================
+
 
 @st.cache_data
 def load_data():
 
-    df = pd.read_csv("Customer_churn.csv")
+    from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+
+@st.cache_data
+def load_data():
+    df = pd.read_csv(BASE_DIR / "Customer_churn.csv")
+
+    if pd.api.types.is_numeric_dtype(df["Churn"]):
+        df["Churn"] = df["Churn"].map({
+            0: "No",
+            1: "Yes"
+        })
+
+    return df
 
     # Convert Churn into readable labels
     if pd.api.types.is_numeric_dtype(df["Churn"]):
