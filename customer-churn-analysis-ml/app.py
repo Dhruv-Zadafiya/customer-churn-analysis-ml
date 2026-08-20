@@ -4,11 +4,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from pathlib import Path
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 
+# =========================================================
+# PAGE CONFIGURATION
+# =========================================================
 
 st.set_page_config(
     page_title="Customer Churn Analytics",
@@ -18,67 +22,105 @@ st.set_page_config(
 )
 
 
-st.markdown("""
-<style>
+# =========================================================
+# CUSTOM CSS
+# =========================================================
 
-.main-title {
-    font-size: 42px;
-    font-weight: 700;
-    margin-bottom: 0px;
-}
+st.markdown(
+    """
+    <style>
 
-.subtitle {
-    font-size: 18px;
-    color: #6b7280;
-    margin-bottom: 25px;
-}
+    .main-title {
+        font-size: 42px;
+        font-weight: 700;
+        margin-bottom: 0px;
+    }
 
-.section-title {
-    font-size: 28px;
-    font-weight: 650;
-    margin-top: 15px;
-}
+    .subtitle {
+        font-size: 18px;
+        color: #6b7280;
+        margin-bottom: 25px;
+    }
 
-div[data-testid="stMetric"] {
-    background-color: #f8fafc;
-    border-radius: 12px;
-    padding: 15px;
-    border: 1px solid #e5e7eb;
-}
+    .section-title {
+        font-size: 28px;
+        font-weight: 650;
+        margin-top: 15px;
+    }
 
-</style>
-""", unsafe_allow_html=True)
+    div[data-testid="stMetric"] {
+        background-color: #f8fafc;
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid #e5e7eb;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
-
-
-@st.cache_data
-def load_data():
-
-    from pathlib import Path
+# =========================================================
+# LOAD DATA
+# =========================================================
 
 BASE_DIR = Path(__file__).resolve().parent
 
+
 @st.cache_data
 def load_data():
-    df = pd.read_csv(BASE_DIR / "Customer_churn.csv")
+
+    file_path = BASE_DIR / "Customer_churn.csv"
+
+    if not file_path.exists():
+        st.error(
+            f"Dataset not found: {file_path}"
+        )
+        st.stop()
+
+    df = pd.read_csv(file_path)
+
+    # -----------------------------------------------------
+    # Convert Churn column into readable labels
+    # -----------------------------------------------------
+
+    if "Churn" not in df.columns:
+        st.error(
+            "The dataset must contain a 'Churn' column."
+        )
+        st.stop()
 
     if pd.api.types.is_numeric_dtype(df["Churn"]):
-        df["Churn"] = df["Churn"].map({
-            0: "No",
-            1: "Yes"
-        })
 
-    return df
+        df["Churn_Label"] = (
+            df["Churn"]
+            .map({
+                0: "No",
+                1: "Yes"
+            })
+            .fillna(df["Churn"].astype(str))
+        )
 
-    # Convert Churn into readable labels
-    if pd.api.types.is_numeric_dtype(df["Churn"]):
-        df["Churn_Label"] = df["Churn"].map({
-            0: "No",
-            1: "Yes"
-        })
     else:
-        df["Churn_Label"] = df["Churn"].astype(str)
+
+        df["Churn_Label"] = (
+            df["Churn"]
+            .astype(str)
+            .str.strip()
+            .str.title()
+        )
+
+        # Handle common text values
+        df["Churn_Label"] = (
+            df["Churn_Label"]
+            .replace({
+                "0": "No",
+                "1": "Yes",
+                "True": "Yes",
+                "False": "No"
+            })
+        )
 
     return df
 
@@ -97,7 +139,8 @@ st.markdown(
 
 st.markdown(
     '<div class="subtitle">'
-    'Interactive Customer Behavior, Churn Analysis & K-Means Segmentation Dashboard'
+    'Interactive Customer Behavior, Churn Analysis & '
+    'K-Means Segmentation Dashboard'
     '</div>',
     unsafe_allow_html=True
 )
@@ -136,12 +179,18 @@ st.sidebar.info(
 
 total_customers = len(df)
 
-churned = (df["Churn_Label"] == "Yes").sum()
+churned = (
+    df["Churn_Label"] == "Yes"
+).sum()
 
-active = (df["Churn_Label"] == "No").sum()
+active = (
+    df["Churn_Label"] == "No"
+).sum()
 
 churn_rate = (
     churned / total_customers * 100
+    if total_customers > 0
+    else 0
 )
 
 
@@ -180,39 +229,43 @@ if page == "🏠 Overview":
 
     st.divider()
 
-    # -------------------------------
+    # -----------------------------------------------------
     # QUICK STATISTICS
-    # -------------------------------
+    # -----------------------------------------------------
 
     st.subheader("📌 Customer Statistics")
 
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric(
-        "Average Age",
-        f"{df['Age'].mean():.1f}"
-    )
+    if "Age" in df.columns:
+        c1.metric(
+            "Average Age",
+            f"{df['Age'].mean():.1f}"
+        )
 
-    c2.metric(
-        "Average Tenure",
-        f"{df['Tenure'].mean():.1f}"
-    )
+    if "Tenure" in df.columns:
+        c2.metric(
+            "Average Tenure",
+            f"{df['Tenure'].mean():.1f}"
+        )
 
-    c3.metric(
-        "Average Total Spend",
-        f"{df['Total Spend'].mean():.2f}"
-    )
+    if "Total Spend" in df.columns:
+        c3.metric(
+            "Average Total Spend",
+            f"{df['Total Spend'].mean():.2f}"
+        )
 
-    c4.metric(
-        "Average Usage Frequency",
-        f"{df['Usage Frequency'].mean():.1f}"
-    )
+    if "Usage Frequency" in df.columns:
+        c4.metric(
+            "Average Usage Frequency",
+            f"{df['Usage Frequency'].mean():.1f}"
+        )
 
     st.divider()
 
-    # -------------------------------
+    # -----------------------------------------------------
     # CHURN DISTRIBUTION
-    # -------------------------------
+    # -----------------------------------------------------
 
     st.subheader("📊 Churn Distribution")
 
@@ -223,10 +276,16 @@ if page == "🏠 Overview":
         churn_data = (
             df["Churn_Label"]
             .value_counts()
+            .reindex(["Yes", "No"])
+            .fillna(0)
+            .astype(int)
             .reset_index()
         )
 
-        churn_data.columns = ["Churn", "Customers"]
+        churn_data.columns = [
+            "Churn",
+            "Customers"
+        ]
 
         st.bar_chart(
             churn_data.set_index("Churn")
@@ -238,22 +297,33 @@ if page == "🏠 Overview":
             figsize=(6, 4)
         )
 
-        ax.pie(
-            [churned, active],
-            labels=["Churned", "Active"],
-            autopct="%1.1f%%",
-            startangle=90
+        values = [churned, active]
+
+        if sum(values) > 0:
+
+            ax.pie(
+                values,
+                labels=["Churned", "Active"],
+                autopct="%1.1f%%",
+                startangle=90
+            )
+
+        ax.set_title(
+            "Customer Churn Percentage"
         )
 
-        ax.set_title("Customer Churn Percentage")
+        st.pyplot(
+            fig,
+            use_container_width=True
+        )
 
-        st.pyplot(fig)
+        plt.close(fig)
 
     st.divider()
 
-    # -------------------------------
+    # -----------------------------------------------------
     # DATASET PREVIEW
-    # -------------------------------
+    # -----------------------------------------------------
 
     st.subheader("📋 Dataset Preview")
 
@@ -271,86 +341,109 @@ elif page == "🔴 Churn Analysis":
 
     st.header("🔴 Churn Analysis")
 
-    # -------------------------------
-    # FILTER
-    # -------------------------------
+    # -----------------------------------------------------
+    # GENDER FILTER
+    # -----------------------------------------------------
 
-    selected_gender = st.multiselect(
-        "Select Gender",
-        options=df["Gender"].unique(),
-        default=df["Gender"].unique()
-    )
+    if "Gender" in df.columns:
 
-    filtered = df[
-        df["Gender"].isin(selected_gender)
-    ]
+        selected_gender = st.multiselect(
+            "Select Gender",
+            options=df["Gender"].dropna().unique(),
+            default=df["Gender"].dropna().unique()
+        )
 
-    # -------------------------------
+        filtered = df[
+            df["Gender"].isin(selected_gender)
+        ]
+
+    else:
+
+        filtered = df.copy()
+
+    # -----------------------------------------------------
     # CHURN BY GENDER
-    # -------------------------------
+    # -----------------------------------------------------
 
-    st.subheader("Churn by Gender")
+    if "Gender" in filtered.columns:
 
-    gender_churn = pd.crosstab(
-        filtered["Gender"],
-        filtered["Churn_Label"]
-    )
+        st.subheader("👤 Churn by Gender")
 
-    st.bar_chart(
-        gender_churn
-    )
+        gender_churn = pd.crosstab(
+            filtered["Gender"],
+            filtered["Churn_Label"]
+        )
 
-    # -------------------------------
+        st.bar_chart(
+            gender_churn
+        )
+
+    # -----------------------------------------------------
     # TENURE VS CHURN
-    # -------------------------------
+    # -----------------------------------------------------
 
-    st.subheader("Tenure vs Churn")
+    if "Tenure" in filtered.columns:
 
-    fig, ax = plt.subplots(
-        figsize=(9, 5)
-    )
+        st.subheader("📅 Tenure vs Churn")
 
-    sns.boxplot(
-        data=filtered,
-        x="Churn_Label",
-        y="Tenure",
-        ax=ax
-    )
+        fig, ax = plt.subplots(
+            figsize=(9, 5)
+        )
 
-    ax.set_xlabel("Churn")
-    ax.set_ylabel("Tenure")
+        sns.boxplot(
+            data=filtered,
+            x="Churn_Label",
+            y="Tenure",
+            ax=ax
+        )
 
-    st.pyplot(fig)
+        ax.set_xlabel("Churn")
+        ax.set_ylabel("Tenure")
 
-    # -------------------------------
+        st.pyplot(
+            fig,
+            use_container_width=True
+        )
+
+        plt.close(fig)
+
+    # -----------------------------------------------------
     # SUPPORT CALLS
-    # -------------------------------
+    # -----------------------------------------------------
 
-    st.subheader("Support Calls vs Churn")
+    if "Support Calls" in filtered.columns:
 
-    support_churn = (
-        filtered.groupby("Churn_Label")["Support Calls"]
-        .mean()
-    )
+        st.subheader("☎️ Support Calls vs Churn")
 
-    st.bar_chart(
-        support_churn
-    )
+        support_churn = (
+            filtered
+            .groupby("Churn_Label")["Support Calls"]
+            .mean()
+            .round(2)
+        )
 
-    # -------------------------------
+        st.bar_chart(
+            support_churn
+        )
+
+    # -----------------------------------------------------
     # PAYMENT DELAY
-    # -------------------------------
+    # -----------------------------------------------------
 
-    st.subheader("Payment Delay vs Churn")
+    if "Payment Delay" in filtered.columns:
 
-    payment_churn = (
-        filtered.groupby("Churn_Label")["Payment Delay"]
-        .mean()
-    )
+        st.subheader("💳 Payment Delay vs Churn")
 
-    st.bar_chart(
-        payment_churn
-    )
+        payment_churn = (
+            filtered
+            .groupby("Churn_Label")["Payment Delay"]
+            .mean()
+            .round(2)
+        )
+
+        st.bar_chart(
+            payment_churn
+        )
 
 
 # =========================================================
@@ -365,69 +458,137 @@ elif page == "👥 Customer Explorer":
         "Use the filters below to explore customer records."
     )
 
-    # -------------------------------
-    # FILTERS
-    # -------------------------------
+    # -----------------------------------------------------
+    # AGE & TENURE FILTERS
+    # -----------------------------------------------------
 
     col1, col2 = st.columns(2)
 
-    with col1:
+    if "Age" in df.columns:
 
-        age_range = st.slider(
-            "Age Range",
-            int(df["Age"].min()),
-            int(df["Age"].max()),
-            (
+        with col1:
+
+            age_range = st.slider(
+                "Age Range",
                 int(df["Age"].min()),
-                int(df["Age"].max())
+                int(df["Age"].max()),
+                (
+                    int(df["Age"].min()),
+                    int(df["Age"].max())
+                )
             )
+
+    else:
+
+        age_range = (
+            -np.inf,
+            np.inf
         )
 
-    with col2:
+    if "Tenure" in df.columns:
 
-        tenure_range = st.slider(
-            "Tenure Range",
-            int(df["Tenure"].min()),
-            int(df["Tenure"].max()),
-            (
+        with col2:
+
+            tenure_range = st.slider(
+                "Tenure Range",
                 int(df["Tenure"].min()),
-                int(df["Tenure"].max())
+                int(df["Tenure"].max()),
+                (
+                    int(df["Tenure"].min()),
+                    int(df["Tenure"].max())
+                )
             )
+
+    else:
+
+        tenure_range = (
+            -np.inf,
+            np.inf
         )
 
-    gender = st.multiselect(
-        "Gender",
-        df["Gender"].unique(),
-        default=df["Gender"].unique()
-    )
+    # -----------------------------------------------------
+    # GENDER
+    # -----------------------------------------------------
 
-    subscription = st.multiselect(
-        "Subscription Type",
-        df["Subscription Type"].unique(),
-        default=df["Subscription Type"].unique()
-    )
+    if "Gender" in df.columns:
+
+        gender = st.multiselect(
+            "Gender",
+            df["Gender"].dropna().unique(),
+            default=df["Gender"].dropna().unique()
+        )
+
+    else:
+
+        gender = None
+
+    # -----------------------------------------------------
+    # SUBSCRIPTION
+    # -----------------------------------------------------
+
+    if "Subscription Type" in df.columns:
+
+        subscription = st.multiselect(
+            "Subscription Type",
+            df["Subscription Type"].dropna().unique(),
+            default=df["Subscription Type"].dropna().unique()
+        )
+
+    else:
+
+        subscription = None
+
+    # -----------------------------------------------------
+    # CHURN
+    # -----------------------------------------------------
 
     churn_filter = st.multiselect(
         "Churn",
-        df["Churn_Label"].unique(),
-        default=df["Churn_Label"].unique()
+        df["Churn_Label"].dropna().unique(),
+        default=df["Churn_Label"].dropna().unique()
     )
 
-    # -------------------------------
+    # -----------------------------------------------------
     # APPLY FILTERS
-    # -------------------------------
+    # -----------------------------------------------------
 
     filtered_df = df[
-        (df["Age"].between(*age_range)) &
-        (df["Tenure"].between(*tenure_range)) &
-        (df["Gender"].isin(gender)) &
-        (df["Subscription Type"].isin(subscription)) &
-        (df["Churn_Label"].isin(churn_filter))
+        (df["Age"].between(*age_range))
+        if "Age" in df.columns
+        else True
     ]
 
-    # -------------------------------
+    if "Tenure" in df.columns:
+
+        filtered_df = filtered_df[
+            filtered_df["Tenure"].between(
+                *tenure_range
+            )
+        ]
+
+    if gender is not None:
+
+        filtered_df = filtered_df[
+            filtered_df["Gender"].isin(gender)
+        ]
+
+    if subscription is not None:
+
+        filtered_df = filtered_df[
+            filtered_df["Subscription Type"].isin(
+                subscription
+            )
+        ]
+
+    filtered_df = filtered_df[
+        filtered_df["Churn_Label"].isin(
+            churn_filter
+        )
+    ]
+
+    # -----------------------------------------------------
     # RESULTS
-    # -------------------------------
+    # -----------------------------------------------------
 
     st.subheader(
         f"🔎 {len(filtered_df):,} Customers Found"
@@ -438,9 +599,9 @@ elif page == "👥 Customer Explorer":
         use_container_width=True
     )
 
-    # -------------------------------
+    # -----------------------------------------------------
     # DOWNLOAD
-    # -------------------------------
+    # -----------------------------------------------------
 
     csv = filtered_df.to_csv(
         index=False
@@ -455,16 +616,19 @@ elif page == "👥 Customer Explorer":
 
 
 # =========================================================
-# CORRELATION
+# CORRELATION ANALYSIS
 # =========================================================
 
 elif page == "🔥 Correlation Analysis":
 
     st.header("🔥 Correlation Analysis")
 
-    numeric_columns = df.select_dtypes(
-        include=np.number
-    ).columns.tolist()
+    numeric_columns = (
+        df
+        .select_dtypes(include=np.number)
+        .columns
+        .tolist()
+    )
 
     selected_columns = st.multiselect(
         "Select Variables",
@@ -474,9 +638,10 @@ elif page == "🔥 Correlation Analysis":
 
     if len(selected_columns) >= 2:
 
-        correlation = df[
-            selected_columns
-        ].corr()
+        correlation = (
+            df[selected_columns]
+            .corr()
+        )
 
         fig, ax = plt.subplots(
             figsize=(11, 8)
@@ -495,7 +660,12 @@ elif page == "🔥 Correlation Analysis":
             "Customer Feature Correlation Heatmap"
         )
 
-        st.pyplot(fig)
+        st.pyplot(
+            fig,
+            use_container_width=True
+        )
+
+        plt.close(fig)
 
     else:
 
@@ -517,9 +687,9 @@ elif page == "🤖 K-Means Segmentation":
         "customers with similar characteristics."
     )
 
-    # -------------------------------
+    # -----------------------------------------------------
     # FEATURES
-    # -------------------------------
+    # -----------------------------------------------------
 
     default_features = [
         "Age",
@@ -532,8 +702,10 @@ elif page == "🤖 K-Means Segmentation":
     ]
 
     available_features = [
-        col for col in default_features
+        col
+        for col in default_features
         if col in df.columns
+        and pd.api.types.is_numeric_dtype(df[col])
     ]
 
     selected_features = st.multiselect(
@@ -542,9 +714,9 @@ elif page == "🤖 K-Means Segmentation":
         default=available_features
     )
 
-    # -------------------------------
+    # -----------------------------------------------------
     # NUMBER OF CLUSTERS
-    # -------------------------------
+    # -----------------------------------------------------
 
     k = st.slider(
         "Number of Clusters (K)",
@@ -556,7 +728,7 @@ elif page == "🤖 K-Means Segmentation":
     if len(selected_features) < 2:
 
         st.warning(
-            "Select at least two features."
+            "Select at least two numeric features."
         )
 
     else:
@@ -565,17 +737,27 @@ elif page == "🤖 K-Means Segmentation":
             selected_features
         ].copy()
 
-        # ---------------------------
+        # -------------------------------------------------
+        # HANDLE MISSING VALUES
+        # -------------------------------------------------
+
+        X = X.fillna(
+            X.median()
+        )
+
+        # -------------------------------------------------
         # STANDARDIZATION
-        # ---------------------------
+        # -------------------------------------------------
 
         scaler = StandardScaler()
 
-        X_scaled = scaler.fit_transform(X)
+        X_scaled = scaler.fit_transform(
+            X
+        )
 
-        # ---------------------------
+        # -------------------------------------------------
         # K-MEANS
-        # ---------------------------
+        # -------------------------------------------------
 
         kmeans = KMeans(
             n_clusters=k,
@@ -591,11 +773,13 @@ elif page == "🤖 K-Means Segmentation":
 
         cluster_df["Cluster"] = clusters
 
-        # ---------------------------
+        # -------------------------------------------------
         # CLUSTER COUNTS
-        # ---------------------------
+        # -------------------------------------------------
 
-        st.subheader("📊 Cluster Distribution")
+        st.subheader(
+            "📊 Cluster Distribution"
+        )
 
         cluster_counts = (
             cluster_df["Cluster"]
@@ -607,9 +791,9 @@ elif page == "🤖 K-Means Segmentation":
             cluster_counts
         )
 
-        # ---------------------------
+        # -------------------------------------------------
         # PCA
-        # ---------------------------
+        # -------------------------------------------------
 
         st.subheader(
             "📍 PCA Cluster Visualization"
@@ -631,7 +815,9 @@ elif page == "🤖 K-Means Segmentation":
             ]
         )
 
-        pca_df["Cluster"] = clusters.astype(str)
+        pca_df["Cluster"] = (
+            clusters.astype(str)
+        )
 
         fig, ax = plt.subplots(
             figsize=(10, 6)
@@ -652,27 +838,28 @@ elif page == "🤖 K-Means Segmentation":
             f"K-Means Clustering — K={k}"
         )
 
-        st.pyplot(fig)
+        st.pyplot(
+            fig,
+            use_container_width=True
+        )
 
-        # ---------------------------
+        plt.close(fig)
+
+        # -------------------------------------------------
         # CLUSTER SUMMARY
-        # ---------------------------
+        # -------------------------------------------------
 
         st.subheader(
             "📋 Cluster Profile"
         )
 
         summary_columns = [
-            col for col in [
-                "Age",
-                "Tenure",
-                "Usage Frequency",
-                "Support Calls",
-                "Payment Delay",
-                "Total Spend",
-                "Last Interaction"
-            ]
+            col
+            for col in default_features
             if col in cluster_df.columns
+            and pd.api.types.is_numeric_dtype(
+                cluster_df[col]
+            )
         ]
 
         cluster_summary = (
@@ -687,19 +874,21 @@ elif page == "🤖 K-Means Segmentation":
             use_container_width=True
         )
 
-        # ---------------------------
+        # -------------------------------------------------
         # DOWNLOAD CLUSTERS
-        # ---------------------------
+        # -------------------------------------------------
 
-        cluster_csv = cluster_df.to_csv(
-            index=False
-        ).encode("utf-8")
+        cluster_csv = (
+            cluster_df
+            .to_csv(index=False)
+            .encode("utf-8")
+        )
 
         st.download_button(
-            "⬇️ Download Customer Segments",
-            cluster_csv,
-            "customer_segments.csv",
-            "text/csv"
+            label="⬇️ Download Customer Segments",
+            data=cluster_csv,
+            file_name="customer_segments.csv",
+            mime="text/csv"
         )
 
 
@@ -720,93 +909,140 @@ elif page == "📈 Cluster Profiles":
         "Total Spend"
     ]
 
-    X = df[features]
+    available_profile_features = [
+        col
+        for col in features
+        if col in df.columns
+        and pd.api.types.is_numeric_dtype(df[col])
+    ]
 
-    scaler = StandardScaler()
+    if len(available_profile_features) < 2:
 
-    X_scaled = scaler.fit_transform(X)
+        st.warning(
+            "Not enough numeric features available "
+            "for cluster profiling."
+        )
 
-    kmeans = KMeans(
-        n_clusters=4,
-        random_state=42,
-        n_init=10
-    )
+    else:
 
-    df_profile = df.copy()
+        X = df[
+            available_profile_features
+        ].copy()
 
-    df_profile["Cluster"] = (
-        kmeans.fit_predict(X_scaled)
-    )
+        X = X.fillna(
+            X.median()
+        )
 
-    # -------------------------------
-    # SUMMARY
-    # -------------------------------
+        scaler = StandardScaler()
 
-    profile = (
-        df_profile
-        .groupby("Cluster")[features]
-        .mean()
-        .round(2)
-    )
+        X_scaled = scaler.fit_transform(
+            X
+        )
 
-    st.dataframe(
-        profile,
-        use_container_width=True
-    )
+        kmeans = KMeans(
+            n_clusters=4,
+            random_state=42,
+            n_init=10
+        )
 
-    # -------------------------------
-    # TOTAL SPEND
-    # -------------------------------
+        df_profile = df.copy()
 
-    st.subheader(
-        "💰 Average Total Spend by Cluster"
-    )
+        df_profile["Cluster"] = (
+            kmeans.fit_predict(
+                X_scaled
+            )
+        )
 
-    spend = (
-        df_profile
-        .groupby("Cluster")["Total Spend"]
-        .mean()
-    )
+        # -------------------------------------------------
+        # SUMMARY
+        # -------------------------------------------------
 
-    st.bar_chart(
-        spend
-    )
+        profile = (
+            df_profile
+            .groupby("Cluster")[
+                available_profile_features
+            ]
+            .mean()
+            .round(2)
+        )
 
-    # -------------------------------
-    # USAGE
-    # -------------------------------
+        st.subheader(
+            "📋 Cluster Summary"
+        )
 
-    st.subheader(
-        "📱 Average Usage Frequency by Cluster"
-    )
+        st.dataframe(
+            profile,
+            use_container_width=True
+        )
 
-    usage = (
-        df_profile
-        .groupby("Cluster")["Usage Frequency"]
-        .mean()
-    )
+        # -------------------------------------------------
+        # TOTAL SPEND
+        # -------------------------------------------------
 
-    st.bar_chart(
-        usage
-    )
+        if "Total Spend" in df_profile.columns:
 
-    # -------------------------------
-    # SUPPORT CALLS
-    # -------------------------------
+            st.subheader(
+                "💰 Average Total Spend by Cluster"
+            )
 
-    st.subheader(
-        "☎️ Average Support Calls by Cluster"
-    )
+            spend = (
+                df_profile
+                .groupby("Cluster")[
+                    "Total Spend"
+                ]
+                .mean()
+                .round(2)
+            )
 
-    support = (
-        df_profile
-        .groupby("Cluster")["Support Calls"]
-        .mean()
-    )
+            st.bar_chart(
+                spend
+            )
 
-    st.bar_chart(
-        support
-    )
+        # -------------------------------------------------
+        # USAGE
+        # -------------------------------------------------
+
+        if "Usage Frequency" in df_profile.columns:
+
+            st.subheader(
+                "📱 Average Usage Frequency by Cluster"
+            )
+
+            usage = (
+                df_profile
+                .groupby("Cluster")[
+                    "Usage Frequency"
+                ]
+                .mean()
+                .round(2)
+            )
+
+            st.bar_chart(
+                usage
+            )
+
+        # -------------------------------------------------
+        # SUPPORT CALLS
+        # -------------------------------------------------
+
+        if "Support Calls" in df_profile.columns:
+
+            st.subheader(
+                "☎️ Average Support Calls by Cluster"
+            )
+
+            support = (
+                df_profile
+                .groupby("Cluster")[
+                    "Support Calls"
+                ]
+                .mean()
+                .round(2)
+            )
+
+            st.bar_chart(
+                support
+            )
 
 
 # =========================================================
@@ -819,37 +1055,39 @@ elif page == "💡 Business Insights":
 
     st.subheader("🎯 Key Findings")
 
-    st.markdown("""
-    ### 1. Customer Churn
+    st.markdown(
+        """
+        ### 1. Customer Churn
 
-    Churn analysis helps identify customers who are leaving
-    the business and supports targeted retention strategies.
+        Churn analysis helps identify customers who are leaving
+        the business and supports targeted retention strategies.
 
-    ### 2. Customer Segmentation
+        ### 2. Customer Segmentation
 
-    K-Means clustering groups customers based on similarities
-    in demographic and behavioral characteristics.
+        K-Means clustering groups customers based on similarities
+        in demographic and behavioral characteristics.
 
-    ### 3. Premium Customers
+        ### 3. Premium Customers
 
-    Customers with higher spending and frequent usage can be
-    treated as valuable customer segments.
+        Customers with higher spending and frequent usage can be
+        treated as valuable customer segments.
 
-    ### 4. Retention Opportunities
+        ### 4. Retention Opportunities
 
-    Customers with lower tenure and higher support activity
-    can be investigated for potential retention campaigns.
+        Customers with lower tenure and higher support activity
+        can be investigated for potential retention campaigns.
 
-    ### 5. Customer Engagement
+        ### 5. Customer Engagement
 
-    Usage frequency and total spending can help businesses
-    understand customer engagement levels.
+        Usage frequency and total spending can help businesses
+        understand customer engagement levels.
 
-    ### 6. Data-Driven Decisions
+        ### 6. Data-Driven Decisions
 
-    Customer segmentation allows businesses to design
-    personalized marketing, engagement and retention strategies.
-    """)
+        Customer segmentation allows businesses to design
+        personalized marketing, engagement and retention strategies.
+        """
+    )
 
     st.success(
         "Customer analytics can help businesses understand "
@@ -870,5 +1108,5 @@ st.divider()
 
 st.caption(
     "Customer Churn Analysis using Machine Learning | "
-    "Python • Pandas • Seaborn • Scikit-learn • Streamlit"
+    "Python • Pandas • NumPy • Seaborn • Scikit-learn • Streamlit"
 )
